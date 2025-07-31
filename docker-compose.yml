@@ -1,0 +1,65 @@
+version: '3.8'
+
+services:
+  roofing-agent:
+    build: .
+    container_name: roofing-outreach-agent
+    ports:
+      - "8501:8501"  # Streamlit dashboard
+      - "8000:8000"  # API endpoint
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - TWILIO_ACCOUNT_SID=${TWILIO_ACCOUNT_SID}
+      - TWILIO_AUTH_TOKEN=${TWILIO_AUTH_TOKEN}
+      - TWILIO_PHONE_NUMBER=${TWILIO_PHONE_NUMBER}
+      - ELEVENLABS_API_KEY=${ELEVENLABS_API_KEY}
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_KEY=${SUPABASE_KEY}
+      - LANGSMITH_API_KEY=${LANGSMITH_API_KEY}
+      - GOOGLE_CREDENTIALS_PATH=/app/credentials/google-credentials.json
+      - COMPANY_NAME=${COMPANY_NAME:-Premium Roofing Solutions}
+      - BUSINESS_PHONE=${BUSINESS_PHONE}
+      - DEBUG=${DEBUG:-false}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+      - ./credentials:/app/credentials
+    restart: unless-stopped
+    depends_on:
+      - redis
+    networks:
+      - roofing-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: roofing-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+    networks:
+      - roofing-network
+
+  nginx:
+    image: nginx:alpine
+    container_name: roofing-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
+      - ./nginx/ssl:/etc/nginx/ssl
+    depends_on:
+      - roofing-agent
+    restart: unless-stopped
+    networks:
+      - roofing-network
+
+volumes:
+  redis_data:
+
+networks:
+  roofing-network:
+    driver: bridge
